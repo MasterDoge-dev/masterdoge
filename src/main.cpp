@@ -1145,7 +1145,8 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, bool fMasternodeP
 
 //static int64_t nTargetTimespan = Params().TargetSpacing()*60;
 
-//
+
+
 // maximum nBits value could possible be required nTime after
 //
 unsigned int ComputeMaxBits(CBigNum bnTargetLimit, unsigned int nBase, int64_t nTime)
@@ -1195,15 +1196,26 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
     int64_t nTargetTimespan = Params().TargetSpacing() * 10;
+
+
+    // change diff retarget to 25 minutes after block 701
+
+    if(pindexLast->nHeight >= 701)
+        int64_t nTargetTimespan = Params().TargetSpacing() * 60 * 25; // 25 minutes
+
+
     CBigNum bnTargetLimit = fProofOfStake ? GetProofOfStakeLimit(pindexLast->nHeight) : Params().ProofOfWorkLimit();
 
     if (pindexLast == NULL)
         return bnTargetLimit.GetCompact(); // genesis block
 
     const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
+
     if (pindexPrev->pprev == NULL)
         return bnTargetLimit.GetCompact(); // first block
+
     const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
+    
     if (pindexPrevPrev->pprev == NULL)
         return bnTargetLimit.GetCompact(); // second block
 
@@ -1213,9 +1225,11 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
 
     // ppcoin: target change every block
     // ppcoin: retarget with exponential moving toward target spacing
+    
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
     int64_t nInterval = nTargetTimespan / Params().TargetSpacing();
+
 
     
     bnNew *= ((nInterval - 1) * Params().TargetSpacing() + nActualSpacing + nActualSpacing);
