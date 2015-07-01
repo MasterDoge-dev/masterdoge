@@ -49,20 +49,20 @@ public:
         // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
         // a large 4-byte int at any alignment.
 
-        pchMessageStart[0] = 0x63;
+        pchMessageStart[0] = 0x53;
         pchMessageStart[1] = 0xd7;
-        pchMessageStart[2] = 0x1d;
+        pchMessageStart[2] = 0x2d;
         pchMessageStart[3] = 0x0a;
 
-        vAlertPubKey = ParseHex("04f262f100bd6128131e41be3205dca5ee39a80ec99f66b3bad938d153e08d9de3882f8de75a85171873fdc600b2c543be1c7e04c63828707bf977050eb4ddec22");
+        vAlertPubKey = ParseHex("04bd92e9f7ec8b3c48ebb27b743ff19cc131b06b18dcac8663d75ee0cc55878057ce9989dd1c82ba13b5277c0d058dd3241ebdeefab91f38300bda1cf8fabf3ad2");
 
         nDefaultPort = 76007;
         nRPCPort = 76008;
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 20);
 
-        const char* pszTimestamp = "MasterDoge";
+        const char* pszTimestamp = "MasterDoge FIXED";
         CTransaction txNew;
-        txNew.nTime = 1435512297;
+        txNew.nTime = 1435774855;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 0 << CBigNum(42) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
@@ -71,13 +71,13 @@ public:
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
         genesis.nVersion = 1;
-        genesis.nTime    = 1435512297;
+        genesis.nTime    = 1435774855;
         genesis.nBits    = bnProofOfWorkLimit.GetCompact();
-        genesis.nNonce   = 515;
+        genesis.nNonce   = 1476223;
 
         hashGenesisBlock = genesis.GetHash();
-        assert(hashGenesisBlock == uint256("0x00000ab95286e17cb32eee82992ec3699e90a7ebd1c5085b295c5a4ebcd9fe18"));
-        assert(genesis.hashMerkleRoot == uint256("0x0adf5a0fcf460e8fb294aa4924194aa2d22b0e4bba129409169138b8bffb1ab2"));
+        assert(hashGenesisBlock == uint256("0x00000cf795158c6e102d3bf2c91ba14bf4a9932e8b759214341892782d5e4904"));
+        assert(genesis.hashMerkleRoot == uint256("0xd3414c5a81b461dfe3066b11f4265da48cfc851f02b6933c0ae0a4a4f7d475d8"));
 		
         vSeeds.push_back(CDNSSeedData("104.238.152.99", "104.238.152.99"));
 		
@@ -92,8 +92,8 @@ public:
 
         nTargetSpacing = 60; // seconds
 
-        nLastPOWBlock  = 20050; 
-        nPremineAmount = 1000000 * COIN;
+        nLastPOWBlock  = 19130; 
+        nPremineAmount = 4350000 * COIN;
         nPremineBlock = 1;
         nRegularPoWReward = 5000 * COIN; 
 
@@ -141,7 +141,7 @@ public:
 
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 16);
 
-        vAlertPubKey = ParseHex("04f262f100bd6128131e41be3205dca5ee39a80ec99f66b3bad938d153e08d9de3882f8de75a85171873fdc600b2c543be1c7e04c63828707bf977050eb4ddec22");
+        vAlertPubKey = ParseHex("04d66d222f3552e2405ffd3604c9f17a6642d04ea031199197ab32bedb0134bafd38c5b85464465e3434303a54c7f481f478e699efd35a47c14deaa30b1eb0dfee");
 
         nDefaultPort = 55007;
         nRPCPort = 55008;
@@ -149,10 +149,10 @@ public:
 
         // Modify the testnet genesis block so the timestamp is valid for a later start.
         genesis.nBits  = bnProofOfWorkLimit.GetCompact();
-        genesis.nNonce = 259; //;
+        genesis.nNonce = 45234; //;
 
         hashGenesisBlock = genesis.GetHash(); 
-        assert(hashGenesisBlock == uint256("0x0000dd87b6fcbc211a8a356c6964d85f3d380c3ee064e77157e36144dfc15379"));
+        assert(hashGenesisBlock == uint256("0x0000ed00fec7d19aa0614f1fc2f4cf8fa143d71187b1395614e38edc2afbfb5e"));
 
         vFixedSeeds.clear();
         vSeeds.clear();

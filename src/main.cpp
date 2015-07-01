@@ -1198,9 +1198,9 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
     int64_t nTargetTimespan = Params().TargetSpacing() * 10;
 
 
-    // change diff retarget to 25 minutes after block 701
+    // change diff retarget to 25 minutes after block 500
 
-    if(pindexLast->nHeight >= 701)
+    if(pindexLast->nHeight >= 500)
         int64_t nTargetTimespan = Params().TargetSpacing() * 60 * 25; // 25 minutes
 
 
