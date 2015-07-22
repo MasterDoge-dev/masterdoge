@@ -13,7 +13,7 @@
 #include "wallet.h"
 #include "init.h"
 #include "guiutil.h"
-
+#include "net.h"
 #include <QAbstractItemDelegate>
 #include <QPainter>
 #include <QTimer>
@@ -48,11 +48,11 @@ MasternodeManager::MasternodeManager(QWidget *parent) :
     connect(timer, SIGNAL(timeout()), this, SLOT(updateNodeList()));
     timer->start(30000);
 
-    LOCK(cs_pcnodes);
-    BOOST_FOREACH(PAIRTYPE(std::string, CMNodeConfig) node, pwalletMain->mapMyMNodes)
-    {
-        updateMNode(QString::fromStdString(node.second.sAlias), QString::fromStdString(node.second.sAddress), QString::fromStdString(node.second.sMasternodePrivKey), QString::fromStdString(node.second.sCollateralAddress));
-    }
+
+
+
+
+
 
     updateNodeList();
 }
@@ -69,12 +69,16 @@ static void NotifyMNodeUpdated(MasternodeManager *page, CMNodeConfig nodeConfig)
     QString addr = QString::fromStdString(nodeConfig.sAddress);
     QString privkey = QString::fromStdString(nodeConfig.sMasternodePrivKey);
     QString collateral = QString::fromStdString(nodeConfig.sCollateralAddress);
+    QString local = "No";
+    if(nodeConfig.isLocal)
+	local = "Yes";
     
     QMetaObject::invokeMethod(page, "updateMNode", Qt::QueuedConnection,
                               Q_ARG(QString, alias),
                               Q_ARG(QString, addr),
                               Q_ARG(QString, privkey),
-                              Q_ARG(QString, collateral)
+                              Q_ARG(QString, collateral),
+			      Q_ARG(QString, local)
                               );
 }
 
@@ -102,9 +106,9 @@ void MasternodeManager::on_tableWidget_2_itemSelectionChanged()
     }
 }
 
-void MasternodeManager::updateMNode(QString alias, QString addr, QString privkey, QString collateral)
+void MasternodeManager::updateMNode(QString alias, QString addr, QString privkey, QString collateral, QString local)
 {
-    LOCK(cs_pcnodes);
+    LOCK(cs_node);
     bool bFound = false;
     int nodeRow = 0;
     for(int i=0; i < ui->tableWidget_2->rowCount(); i++)
@@ -124,11 +128,13 @@ void MasternodeManager::updateMNode(QString alias, QString addr, QString privkey
     QTableWidgetItem *addrItem = new QTableWidgetItem(addr);
     QTableWidgetItem *statusItem = new QTableWidgetItem("");
     QTableWidgetItem *collateralItem = new QTableWidgetItem(collateral);
+    QTableWidgetItem *localItem = new QTableWidgetItem(local);
 
     ui->tableWidget_2->setItem(nodeRow, 0, aliasItem);
     ui->tableWidget_2->setItem(nodeRow, 1, addrItem);
     ui->tableWidget_2->setItem(nodeRow, 2, statusItem);
-    ui->tableWidget_2->setItem(nodeRow, 3, collateralItem);
+    ui->tableWidget_2->setItem(nodeRow, 3, localItem);
+    ui->tableWidget_2->setItem(nodeRow, 4, collateralItem);
 }
 
 static QString seconds_to_DHMS(quint32 duration)
@@ -185,8 +191,19 @@ void MasternodeManager::updateNodeList()
     }
 
     ui->countLabel->setText(QString::number(ui->tableWidget->rowCount()));
-}
 
+    if(pwalletMain)
+    {
+        LOCK(cs_node);
+        BOOST_FOREACH(PAIRTYPE(std::string, CMNodeConfig) node, pwalletMain->mapMyMNodes)
+        {
+	    QString local = "No";
+	    if(node.second.isLocal)
+		local = "Yes";
+            updateMNode(QString::fromStdString(node.second.sAlias), QString::fromStdString(node.second.sAddress), QString::fromStdString(node.second.sMasternodePrivKey), QString::fromStdString(node.second.sCollateralAddress), local);
+        }
+    }
+}
 
 void MasternodeManager::setClientModel(ClientModel *model)
 {
@@ -279,11 +296,151 @@ void MasternodeManager::on_removeButton_clicked()
         ui->tableWidget_2->setRowCount(0);
         BOOST_FOREACH(PAIRTYPE(std::string, CMNodeConfig) node, pwalletMain->mapMyMNodes)
         {
-            updateMNode(QString::fromStdString(node.second.sAlias), QString::fromStdString(node.second.sAddress), QString::fromStdString(node.second.sMasternodePrivKey), QString::fromStdString(node.second.sCollateralAddress));
+	    QString local = "No";
+	    if(node.second.isLocal)
+		local = "Yes";
+            updateMNode(QString::fromStdString(node.second.sAlias), QString::fromStdString(node.second.sAddress), QString::fromStdString(node.second.sMasternodePrivKey), QString::fromStdString(node.second.sCollateralAddress), local);
         }
     }
 }
 
+void MasternodeManager::on_localButton_clicked()
+{
+    bool bAlreadyHaveLocalTree = false;
+    // Check if a local masternode already exists
+    BOOST_FOREACH(PAIRTYPE(std::string, CMNodeConfig) node, pwalletMain->mapMyMNodes)
+    {
+        if(node.second.isLocal)
+	{
+	    bAlreadyHaveLocalTree = true;
+	    break;
+	}
+    }
+    if(bAlreadyHaveLocalTree)
+    {
+	QMessageBox msg;
+        msg.setText("A local masternode already exists.");
+	msg.exec();
+	return;
+    }
+
+    // Only create once the external IP is known
+    if(GetLocalAddress(NULL).ToStringIP() == "0.0.0.0")
+    {
+	QMessageBox msg;
+        msg.setText("The local external IP is not yet detected.  Please try again in a few minutes.");
+	msg.exec();
+	return;
+    }
+
+    if(pwalletMain->GetBalance() < 20000.1*COIN)
+    {
+	QMessageBox msg;
+        msg.setText("You must have at least 20000.1 MDOGE to cover the 20000 MDOGE collateral for a Masternode and the tx fee.");
+	msg.exec();
+	return;
+    }
+
+    if (pwalletMain->IsLocked())
+    {
+	QMessageBox msg;
+        msg.setText("Your wallet must be unlocked so that the 20000 MDOGE collateral can be sent.");
+	msg.exec();
+	return;
+    }
+
+    // Automatically create an entry for the local address
+	CMNodeConfig c;
+        c.sAlias = "Local Masternode";
+	c.sAddress = GetLocalAddress(NULL).ToStringIPPort();
+        CKey secret;
+        secret.MakeNewKey(false);
+        c.sMasternodePrivKey = CBitcoinSecret(secret).ToString();
+	
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        CAccount account;
+        walletdb.ReadAccount(c.sAlias, account);
+        bool bKeyUsed = false;
+	bool bForceNew = false;
+
+        // Check if the current key has been used
+        if (account.vchPubKey.IsValid())
+        {
+            CScript scriptPubKey;
+            scriptPubKey.SetDestination(account.vchPubKey.GetID());
+            for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
+                 it != pwalletMain->mapWallet.end() && account.vchPubKey.IsValid();
+                 ++it)
+            {
+                const CWalletTx& wtx = (*it).second;
+                BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+                    if (txout.scriptPubKey == scriptPubKey)
+                        bKeyUsed = true;
+            }
+        }
+
+        // Generate a new key
+        if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed)
+
+        {
+            if (!pwalletMain->GetKeyFromPool(account.vchPubKey))
+            {
+		QMessageBox msg;
+                msg.setText("Keypool ran out, please call keypoolrefill first.");
+		msg.exec();
+		return;
+	    }
+            pwalletMain->SetAddressBookName(account.vchPubKey.GetID(), c.sAlias);
+            walletdb.WriteAccount(c.sAlias, account);
+
+        }
+
+        c.sCollateralAddress = CBitcoinAddress(account.vchPubKey.GetID()).ToString();
+
+        c.isLocal = true;
+
+        pwalletMain->mapMyMNodes.insert(make_pair(c.sAddress, c));
+	walletdb.WriteMNodeConfig(c.sAddress, c);
+        uiInterface.NotifyMNodeChanged(c);
+
+        strMasterNodeAddr = c.sAddress;
+	strMasterNodePrivKey = c.sMasternodePrivKey;
+
+        CKey keyds;
+            CPubKey pubkeyds;
+	std::string errorMessage;
+            if(!darkSendSigner.SetKey(strMasterNodePrivKey, errorMessage, keyds, pubkeyds))
+            {
+                QMessageBox msg;
+                msg.setText("Invalid masternodeprivkey. Please see documenation.");
+		msg.exec();
+		return;
+            }
+
+        activeMasternode.pubKeyMasternode = pubkeyds;
+        fMasterNode = true;
+
+    CWalletTx wtx;
+    std::string sNarr;
+
+    string strError = pwalletMain->SendMoneyToDestination(CBitcoinAddress(account.vchPubKey.GetID()).Get(), 20000*COIN, sNarr, wtx);
+    if (strError != "")
+    {
+	QMessageBox msg;
+        msg.setText(QString::fromStdString(strError));
+	msg.exec();
+	return;
+    }
+    else
+    {
+	QMessageBox msg;
+	std::string sMsg = "Local Masternode created and 20000 MDOGE sent to the collateral address.  Transaction hash:\n";
+	sMsg += wtx.GetHash().GetHex();
+        msg.setText(QString::fromStdString(sMsg));
+	msg.exec();
+	return;
+    }
+}
 void MasternodeManager::on_startButton_clicked()
 {
     // start the node

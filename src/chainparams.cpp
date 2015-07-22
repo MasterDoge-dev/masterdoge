@@ -56,8 +56,8 @@ public:
 
         vAlertPubKey = ParseHex("04bd92e9f7ec8b3c48ebb27b743ff19cc131b06b18dcac8663d75ee0cc55878057ce9989dd1c82ba13b5277c0d058dd3241ebdeefab91f38300bda1cf8fabf3ad2");
 
-        nDefaultPort = 76007;
-        nRPCPort = 76008;
+        nDefaultPort = 2589;
+        nRPCPort = 2588;
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 20);
 
         const char* pszTimestamp = "MasterDoge FIXED";
